@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    html {
+        font-size: 14px;
+        font-family: nunito, sans-serif;
+    }
+}
+
+.card,
+.btn,
+.input {
+	@apply rounded-none;
+}
+
+.btn {
+	@apply text-white;
+}
