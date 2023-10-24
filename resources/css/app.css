@@ -3,10 +3,22 @@
 @tailwind utilities;
 
 @layer base {
-    html {
-        font-size: 14px;
-        font-family: nunito, sans-serif;
-    }
+	html {
+		font-size: 14px;
+		font-family: nunito, sans-serif;
+	}
+}
+
+.htmx-indicator {
+	display: none;
+}
+
+.htmx-request .htmx-indicator{
+	display: inline;
+}
+
+.htmx-request.htmx-indicator{
+	display: inline;
 }
 
 .card,
