@@ -7,14 +7,21 @@ use axum::{
     Form, Router,
 };
 use maud::{html, Markup, PreEscaped, DOCTYPE};
-use serde::{de::DeserializeOwned, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
 use tower_http::services::ServeDir;
 use validator::{Validate, ValidationErrors, ValidationErrorsKind};
 
 #[derive(Deserialize, Debug, Validate)]
 struct RegisterRequest {
     #[serde(deserialize_with = "deserialize_option_string")]
-    #[validate(required(message = "This field is required."))]
+    #[validate(
+        required(message = "This field is required and the length is in range 5-12"),
+        length(
+            min = 5,
+            max = 12,
+            message = "This field is required and the length is in range 5-12"
+        )
+    )]
     username: Option<String>,
 
     #[serde(deserialize_with = "deserialize_option_string")]
@@ -48,24 +55,23 @@ where
     };
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-struct ValidatedForm<T>(T);
+#[derive(Debug)]
+struct ValidatedForm(RegisterRequest);
 
 #[async_trait]
-impl<T, S, B> FromRequest<S, B> for ValidatedForm<T>
+impl<S, B> FromRequest<S, B> for ValidatedForm
 where
-    T: DeserializeOwned + Validate,
     S: Send + Sync,
     B: Send + 'static,
-    Form<T>: FromRequest<S, B, Rejection = FormRejection>,
+    Form<RegisterRequest>: FromRequest<S, B, Rejection = FormRejection>,
 {
     type Rejection = ServerError;
 
     async fn from_request(request: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
-        return match Form::<T>::from_request(request, state).await {
+        return match Form::<RegisterRequest>::from_request(request, state).await {
             Err(err) => Err(ServerError::AxumFormRejection(err)),
             Ok(Form(value)) => match value.validate() {
-                Err(err) => Err(ServerError::ValidationError(err)),
+                Err(err) => Err(ServerError::ValidationError(err, value)),
                 Ok(_) => Ok(ValidatedForm(value)),
             },
         };
@@ -74,7 +80,7 @@ where
 
 #[derive(Debug)]
 enum ServerError {
-    ValidationError(validator::ValidationErrors),
+    ValidationError(validator::ValidationErrors, RegisterRequest),
     AxumFormRejection(FormRejection),
 }
 
@@ -102,12 +108,11 @@ impl IntoResponse for ServerError {
                 };
             }
         }
-        println!("{:?}", self);
 
         return match self {
-            ServerError::ValidationError(errs) => {
+            ServerError::ValidationError(errs, value) => {
                 let message = html! {
-                    div class="card-body gap-4" {
+                    div class="card-body" {
                         h1 class="card-title text-center text-2xl" { "Đăng Ký" }
                         div class="form-control" {
                             label class="label" for="username" {
@@ -119,7 +124,7 @@ impl IntoResponse for ServerError {
                                         (if errs.errors().contains_key("username") { " input-error" } else { "" }) 
                                     }
                                     name="username"
-                                    value=""
+                                    value=(value.username.unwrap_or("".to_string()))
                                     required;
                             (ErrorHtml(&errs, "username"))
                         }
@@ -133,7 +138,7 @@ impl IntoResponse for ServerError {
                                         (if errs.errors().contains_key("email") { " input-error" } else { "" }) 
                                     }
                                     name="email"
-                                    value=""
+                                    value=(value.email.unwrap_or("".to_string()))
                                     required;
                             (ErrorHtml(&errs, "email"))
                         }
@@ -147,7 +152,7 @@ impl IntoResponse for ServerError {
                                         (if errs.errors().contains_key("password") { " input-error" } else { "" }) 
                                     }
                                     name="password"
-                                    value=""
+                                    value=(value.password.unwrap_or("".to_string()))
                                     required;
                             (ErrorHtml(&errs, "password"))
                         }
@@ -161,7 +166,7 @@ impl IntoResponse for ServerError {
                                         (if errs.errors().contains_key("password_confirmation") { " input-error" } else { "" }) 
                                     }
                                     name="password_confirmation"
-                                    value=""
+                                    value=(value.password_confirmation.unwrap_or("".to_string()))
                                     required;
                             (ErrorHtml(&errs, "password_confirmation"))
                         }
@@ -200,8 +205,8 @@ async fn main() {
                                 script src="https://unpkg.com/htmx.org@1.9.6" {}
                             }
                             body class="grid place-items-center h-[100dvh] bg-blue-50" {
-                                form class="card shadow-md bg-white w-96 -translate-y-1/2" hx-post="/register" novalidate {
-                                    div class="card-body gap-4" {
+                                form class="card shadow-md bg-white w-96 -translate-y-1/4" hx-post="/register" novalidate {
+                                    div class="card-body " {
                                         h1 class="card-title text-center text-2xl" { "Đăng Ký" }
                                         div class="form-control" {
                                             label class="label" for="username" {
@@ -247,7 +252,7 @@ async fn main() {
                                                     value="" 
                                                     required;
                                         }
-                                        div class="flex justify-end items-center gap-4" {
+                                        div class="flex justify-end items-center gap-4 mt-4" {
                                             a href="/login" class="underline" { "Đã có tài khoản?" }
                                             button type="submit" class="btn btn-primary text-white" { 
                                                 span class="loading loading-spinner loading-sm htmx-indicator" {}
@@ -260,7 +265,7 @@ async fn main() {
                         }
                     };
                 }
-            ).post(|ValidatedForm(request): ValidatedForm<RegisterRequest>| async move {
+            ).post(|ValidatedForm(request): ValidatedForm| async move {
                 println!("{:?}", request);
             })
         );
