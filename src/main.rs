@@ -63,16 +63,16 @@ impl<T, S, B> FromRequest<S, B> for ValidatedForm<T>
 where
     S: Send + Sync,
     B: Send + 'static,
-    T: DeserializeOwned + Validate,
+    T: DeserializeOwned + Validate + RenderErrorsAsHtml,
     Form<T>: FromRequest<S, B, Rejection = FormRejection>,
 {
-    type Rejection = ServerError;
+    type Rejection = ApplicationError<T>;
 
     async fn from_request(request: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
         return match Form::<T>::from_request(request, state).await {
-            Err(err) => Err(ServerError::AxumFormRejection(err)),
+            Err(err) => Err(ApplicationError::AxumFormRejection(err)),
             Ok(Form(value)) => match value.validate() {
-                Err(err) => Err(ServerError::ValidationError(err)),
+                Err(err) => Err(ApplicationError::ValidationError(err, value)),
                 Ok(_) => Ok(ValidatedForm(value)),
             },
         };
@@ -80,13 +80,17 @@ where
 }
 
 #[derive(Debug)]
-enum ServerError {
-    ValidationError(validator::ValidationErrors),
+enum ApplicationError<T> {
+    ValidationError(validator::ValidationErrors, T),
     AxumFormRejection(FormRejection),
 }
 
-impl IntoResponse for ServerError {
-    fn into_response(self) -> axum::response::Response {
+trait RenderErrorsAsHtml {
+    fn render(&self, errs: validator::ValidationErrors) -> Markup;
+}
+
+impl RenderErrorsAsHtml for RegisterRequest {
+    fn render(&self, errs: validator::ValidationErrors) -> Markup {
         struct ErrorHtml<'a>(&'a ValidationErrors, &'a str);
 
         impl<'a> maud::Render for ErrorHtml<'a> {
@@ -110,78 +114,82 @@ impl IntoResponse for ServerError {
             }
         }
 
-        return match self {
-            ServerError::ValidationError(errs) => {
-                html! {
-                    div class="card-body" {
-                        h1 class="card-title text-center text-2xl" { "Đăng Ký" }
-                        div class="form-control" {
-                            label class="label" for="username" {
-                                span { "Username: " span class="text-red-500" { "*" } }
+        return html! {
+            div class="card-body" {
+                h1 class="card-title text-center text-2xl" { "Đăng Ký" }
+                div class="form-control" {
+                    label class="label" for="username" {
+                        span { "Username: " span class="text-red-500" { "*" } }
+                    }
+                    input id="username"
+                            type="input"
+                            class={ "input input-bordered bg-white"
+                                (if errs.errors().contains_key("username") { " input-error" } else { "" })
                             }
-                            input id="username"
-                                    type="input"
-                                    class={ "input input-bordered bg-white" 
-                                        (if errs.errors().contains_key("username") { " input-error" } else { "" }) 
-                                    }
-                                    name="username"
-                                    //value=(value.username.unwrap_or("".to_string()))
-                                    required;
-                            (ErrorHtml(&errs, "username"))
-                        }
-                        div class="form-control" {
-                            label class="label" for="emaill" {
-                                span { "Email: " span class="text-red-500" { "*" } }
+                            name="username"
+                            value=(self.username.as_ref().unwrap_or(&"".to_string()))
+                            required;
+                    (ErrorHtml(&errs, "username"))
+                }
+                div class="form-control" {
+                    label class="label" for="emaill" {
+                        span { "Email: " span class="text-red-500" { "*" } }
+                    }
+                    input id="email"
+                            type="email"
+                            class={ "input input-bordered bg-white"
+                                (if errs.errors().contains_key("email") { " input-error" } else { "" })
                             }
-                            input id="email"
-                                    type="email"
-                                    class={ "input input-bordered bg-white" 
-                                        (if errs.errors().contains_key("email") { " input-error" } else { "" }) 
-                                    }
-                                    name="email"
-                                    //value=(value.email.unwrap_or("".to_string()))
-                                    required;
-                            (ErrorHtml(&errs, "email"))
-                        }
-                        div class="form-control" {
-                            label class="label" for="password" {
-                                span { "Password: " span class="text-red-500" { "*" } }
+                            name="email"
+                            value=(self.email.as_ref().unwrap_or(&"".to_string()))
+                            required;
+                    (ErrorHtml(&errs, "email"))
+                }
+                div class="form-control" {
+                    label class="label" for="password" {
+                        span { "Password: " span class="text-red-500" { "*" } }
+                    }
+                    input id="password"
+                            type="password"
+                            class={ "input input-bordered bg-white"
+                                (if errs.errors().contains_key("password") { " input-error" } else { "" })
                             }
-                            input id="password"
-                                    type="password"
-                                    class={ "input input-bordered bg-white" 
-                                        (if errs.errors().contains_key("password") { " input-error" } else { "" }) 
-                                    }
-                                    name="password"
-                                    //value=(value.password.unwrap_or("".to_string()))
-                                    required;
-                            (ErrorHtml(&errs, "password"))
-                        }
-                        div class="form-control" {
-                            label class="label" for="password_confirmation" {
-                                span { "Confirm Password: " span class="text-red-500" { "*" } }
+                            name="password"
+                            value=(self.password.as_ref().unwrap_or(&"".to_string()))
+                            required;
+                    (ErrorHtml(&errs, "password"))
+                }
+                div class="form-control" {
+                    label class="label" for="password_confirmation" {
+                        span { "Confirm Password: " span class="text-red-500" { "*" } }
+                    }
+                    input id="password_confirmation"
+                            type="password"
+                            class={ "input input-bordered bg-white"
+                                (if errs.errors().contains_key("password_confirmation") { " input-error" } else { "" })
                             }
-                            input id="password_confirmation"
-                                    type="password"
-                                    class={ "input input-bordered bg-white" 
-                                        (if errs.errors().contains_key("password_confirmation") { " input-error" } else { "" }) 
-                                    }
-                                    name="password_confirmation"
-                                    //value=(value.password_confirmation.unwrap_or("".to_string()))
-                                    required;
-                            (ErrorHtml(&errs, "password_confirmation"))
-                        }
-                        div class="flex justify-end items-center gap-4" {
-                            a href="/login" class="underline" { "Đã có tài khoản?" }
-                            button type="submit" class="btn btn-primary text-white" {
-                                span class="loading loading-spinner loading-sm htmx-indicator" {}
-                                "Lưu"
-                            }
-                        }
+                            name="password_confirmation"
+                            value=(self.password_confirmation.as_ref().unwrap_or(&"".to_string()))
+                            required;
+                    (ErrorHtml(&errs, "password_confirmation"))
+                }
+                div class="flex justify-end items-center gap-4" {
+                    a href="/login" class="underline" { "Đã có tài khoản?" }
+                    button type="submit" class="btn btn-primary text-white" {
+                        span class="loading loading-spinner loading-sm htmx-indicator" {}
+                        "Lưu"
                     }
                 }
             }
-            ServerError::AxumFormRejection(_) => PreEscaped("".to_string()),
+        };
+    }
+}
+
+impl<T: RenderErrorsAsHtml> IntoResponse for ApplicationError<T> {
+    fn into_response(self) -> axum::response::Response {
+        return match self {
+            ApplicationError::ValidationError(errs, html_renderer) => html_renderer.render(errs),
+            ApplicationError::AxumFormRejection(_) => PreEscaped("".to_string()),
         }
         .into_response();
     }
