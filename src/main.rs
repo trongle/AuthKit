@@ -7,7 +7,7 @@ use axum::{
     Form, Router,
 };
 use maud::{html, Markup, PreEscaped, DOCTYPE};
-use serde::{Deserialize, Deserializer};
+use serde::{de::DeserializeOwned, Deserialize, Deserializer};
 use tower_http::services::ServeDir;
 use validator::{Validate, ValidationErrors, ValidationErrorsKind};
 
@@ -56,22 +56,23 @@ where
 }
 
 #[derive(Debug)]
-struct ValidatedForm(RegisterRequest);
+struct ValidatedForm<T>(T);
 
 #[async_trait]
-impl<S, B> FromRequest<S, B> for ValidatedForm
+impl<T, S, B> FromRequest<S, B> for ValidatedForm<T>
 where
     S: Send + Sync,
     B: Send + 'static,
-    Form<RegisterRequest>: FromRequest<S, B, Rejection = FormRejection>,
+    T: DeserializeOwned + Validate,
+    Form<T>: FromRequest<S, B, Rejection = FormRejection>,
 {
     type Rejection = ServerError;
 
     async fn from_request(request: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
-        return match Form::<RegisterRequest>::from_request(request, state).await {
+        return match Form::<T>::from_request(request, state).await {
             Err(err) => Err(ServerError::AxumFormRejection(err)),
             Ok(Form(value)) => match value.validate() {
-                Err(err) => Err(ServerError::ValidationError(err, value)),
+                Err(err) => Err(ServerError::ValidationError(err)),
                 Ok(_) => Ok(ValidatedForm(value)),
             },
         };
@@ -80,7 +81,7 @@ where
 
 #[derive(Debug)]
 enum ServerError {
-    ValidationError(validator::ValidationErrors, RegisterRequest),
+    ValidationError(validator::ValidationErrors),
     AxumFormRejection(FormRejection),
 }
 
@@ -110,8 +111,8 @@ impl IntoResponse for ServerError {
         }
 
         return match self {
-            ServerError::ValidationError(errs, value) => {
-                let message = html! {
+            ServerError::ValidationError(errs) => {
+                html! {
                     div class="card-body" {
                         h1 class="card-title text-center text-2xl" { "Đăng Ký" }
                         div class="form-control" {
@@ -124,7 +125,7 @@ impl IntoResponse for ServerError {
                                         (if errs.errors().contains_key("username") { " input-error" } else { "" }) 
                                     }
                                     name="username"
-                                    value=(value.username.unwrap_or("".to_string()))
+                                    //value=(value.username.unwrap_or("".to_string()))
                                     required;
                             (ErrorHtml(&errs, "username"))
                         }
@@ -138,7 +139,7 @@ impl IntoResponse for ServerError {
                                         (if errs.errors().contains_key("email") { " input-error" } else { "" }) 
                                     }
                                     name="email"
-                                    value=(value.email.unwrap_or("".to_string()))
+                                    //value=(value.email.unwrap_or("".to_string()))
                                     required;
                             (ErrorHtml(&errs, "email"))
                         }
@@ -152,7 +153,7 @@ impl IntoResponse for ServerError {
                                         (if errs.errors().contains_key("password") { " input-error" } else { "" }) 
                                     }
                                     name="password"
-                                    value=(value.password.unwrap_or("".to_string()))
+                                    //value=(value.password.unwrap_or("".to_string()))
                                     required;
                             (ErrorHtml(&errs, "password"))
                         }
@@ -166,7 +167,7 @@ impl IntoResponse for ServerError {
                                         (if errs.errors().contains_key("password_confirmation") { " input-error" } else { "" }) 
                                     }
                                     name="password_confirmation"
-                                    value=(value.password_confirmation.unwrap_or("".to_string()))
+                                    //value=(value.password_confirmation.unwrap_or("".to_string()))
                                     required;
                             (ErrorHtml(&errs, "password_confirmation"))
                         }
@@ -178,8 +179,7 @@ impl IntoResponse for ServerError {
                             }
                         }
                     }
-                };
-                message
+                }
             }
             ServerError::AxumFormRejection(_) => PreEscaped("".to_string()),
         }
@@ -265,7 +265,7 @@ async fn main() {
                         }
                     };
                 }
-            ).post(|ValidatedForm(request): ValidatedForm| async move {
+            ).post(|ValidatedForm(request): ValidatedForm<RegisterRequest>| async move {
                 println!("{:?}", request);
             })
         );
