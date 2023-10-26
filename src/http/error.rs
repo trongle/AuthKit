@@ -2,7 +2,7 @@ use axum::{extract::rejection::FormRejection, response::IntoResponse};
 use maud::{Markup, PreEscaped};
 
 #[derive(Debug)]
-pub(super) enum ApplicationError<T> {
+pub enum ApplicationError<T> {
     ValidationError(validator::ValidationErrors, T),
     AxumFormRejection(FormRejection),
 }
