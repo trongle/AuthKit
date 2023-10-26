@@ -38,15 +38,16 @@ struct RegisterRequest {
     )]
     password_confirmation: Option<String>,
 }
+
 impl RenderErrorsAsHtml for RegisterRequest {
     fn render(&self, errs: ValidationErrors) -> Markup {
         let errs = Some(&errs);
 
         return register_form(html! {
-            (input("username", errs, self.username.as_deref()))
-            (input("email", errs, self.email.as_deref()))
-            (input("password", errs, self.password.as_deref()))
-            (input("password_confirmation", errs, self.password_confirmation.as_deref()))
+            (input("Username", "username", errs, self.username.as_deref()))
+            (input("Email","email", errs, self.email.as_deref()))
+            (input("Password","password", errs, self.password.as_deref()))
+            (input("Password Confirmation","password_confirmation", errs, self.password_confirmation.as_deref()))
         });
     }
 }

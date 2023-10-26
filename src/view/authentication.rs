@@ -15,10 +15,10 @@ pub async fn register_page() -> Markup {
             body class="grid place-items-center h-[100dvh] bg-blue-50" {
                 div class="card shadow-md bg-white w-96 -translate-y-1/4" {
                     (register_form(html! {
-                        (input("username", None, None))
-                        (input("email", None, None))
-                        (input("password", None, None))
-                        (input("password_confirmation", None, None))
+                        (input("Username", "username", None, None))
+                        (input("Email", "email", None, None))
+                        (input("Password", "password", None, None))
+                        (input("Password Confirmation", "password_confirmation", None, None))
                     }))
                 }
             }
@@ -26,22 +26,27 @@ pub async fn register_page() -> Markup {
     };
 }
 
-pub fn input<'a>(field: &'a str, errs: Option<&ValidationErrors>, value: Option<&str>) -> Markup {
+pub fn input(
+    label: &str,
+    field_name: &str,
+    errs: Option<&ValidationErrors>,
+    value: Option<&str>,
+) -> Markup {
     let (error_html, error_class) = if let Some(e) = errs {
-        (error(field, e), "input-error")
+        (error(field_name, e), "input-error")
     } else {
         (PreEscaped("".to_string()), "")
     };
 
     return html! {
         div class="form-control" {
-            label class="label" for=(field) {
-                span class="capitalize" { (field)": " span class="text-red-500" { "*" } }
+            label class="label" for=(field_name) {
+                span class="capitalize" { (label)": " span class="text-red-500" { "*" } }
             }
-            input id=(field)
+            input id=(field_name)
                     type="input"
                     class={ "input input-bordered bg-white "(error_class) }
-                    name=(field)
+                    name=(field_name)
                     value=(value.unwrap_or(""))
                     required;
             (error_html)
