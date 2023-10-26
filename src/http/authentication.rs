@@ -1,10 +1,11 @@
 use super::{
     error::RenderErrorsAsHtml, extractor::ValidatedForm, utils::deserialize_empty_string_as_none,
 };
+use crate::view::authentication::{input, register_form, register_page};
 use axum::{routing::get, Router};
-use maud::{html, Markup, PreEscaped, DOCTYPE};
+use maud::{html, Markup};
 use serde::Deserialize;
-use validator::{Validate, ValidationErrors, ValidationErrorsKind};
+use validator::{Validate, ValidationErrors};
 
 #[derive(Deserialize, Debug, Validate)]
 struct RegisterRequest {
@@ -37,178 +38,21 @@ struct RegisterRequest {
     )]
     password_confirmation: Option<String>,
 }
-
 impl RenderErrorsAsHtml for RegisterRequest {
-    fn render(&self, errs: validator::ValidationErrors) -> Markup {
-        struct ErrorHtml<'a>(&'a ValidationErrors, &'a str);
+    fn render(&self, errs: ValidationErrors) -> Markup {
+        let errs = Some(&errs);
 
-        impl<'a> maud::Render for ErrorHtml<'a> {
-            fn render(&self) -> Markup {
-                let (errors, field) = (self.0, self.1);
-
-                return if !errors.errors().contains_key(field) {
-                    PreEscaped("".to_string())
-                } else {
-                    html! {
-                        label class="label text-red-500" for=(field) {
-                            span {
-                                (match errors.errors().get(field) {
-                                    Some(ValidationErrorsKind::Field(errors)) => errors.first().unwrap().message.as_ref().unwrap(),
-                                    _ => ""
-                                })
-                            }
-                        }
-                    }
-                };
-            }
-        }
-
-        return html! {
-            div class="card-body" {
-                h1 class="card-title text-center text-2xl" { "Đăng Ký" }
-                div class="form-control" {
-                    label class="label" for="username" {
-                        span { "Username: " span class="text-red-500" { "*" } }
-                    }
-                    input id="username"
-                            type="input"
-                            class={ "input input-bordered bg-white"
-                                (if errs.errors().contains_key("username") { " input-error" } else { "" })
-                            }
-                            name="username"
-                            value=(self.username.as_ref().unwrap_or(&"".to_string()))
-                            required;
-                    (ErrorHtml(&errs, "username"))
-                }
-                div class="form-control" {
-                    label class="label" for="emaill" {
-                        span { "Email: " span class="text-red-500" { "*" } }
-                    }
-                    input id="email"
-                            type="email"
-                            class={ "input input-bordered bg-white"
-                                (if errs.errors().contains_key("email") { " input-error" } else { "" })
-                            }
-                            name="email"
-                            value=(self.email.as_ref().unwrap_or(&"".to_string()))
-                            required;
-                    (ErrorHtml(&errs, "email"))
-                }
-                div class="form-control" {
-                    label class="label" for="password" {
-                        span { "Password: " span class="text-red-500" { "*" } }
-                    }
-                    input id="password"
-                            type="password"
-                            class={ "input input-bordered bg-white"
-                                (if errs.errors().contains_key("password") { " input-error" } else { "" })
-                            }
-                            name="password"
-                            value=(self.password.as_ref().unwrap_or(&"".to_string()))
-                            required;
-                    (ErrorHtml(&errs, "password"))
-                }
-                div class="form-control" {
-                    label class="label" for="password_confirmation" {
-                        span { "Confirm Password: " span class="text-red-500" { "*" } }
-                    }
-                    input id="password_confirmation"
-                            type="password"
-                            class={ "input input-bordered bg-white"
-                                (if errs.errors().contains_key("password_confirmation") { " input-error" } else { "" })
-                            }
-                            name="password_confirmation"
-                            value=(self.password_confirmation.as_ref().unwrap_or(&"".to_string()))
-                            required;
-                    (ErrorHtml(&errs, "password_confirmation"))
-                }
-                div class="flex justify-end items-center gap-4" {
-                    a href="/login" class="underline" { "Đã có tài khoản?" }
-                    button type="submit" class="btn btn-primary text-white" {
-                        span class="loading loading-spinner loading-sm htmx-indicator" {}
-                        "Lưu"
-                    }
-                }
-            }
-        };
+        return register_form(html! {
+            (input("username", errs, self.username.as_deref()))
+            (input("email", errs, self.email.as_deref()))
+            (input("password", errs, self.password.as_deref()))
+            (input("password_confirmation", errs, self.password_confirmation.as_deref()))
+        });
     }
 }
 
 pub fn router() -> Router {
-    return Router::new().route("/register", get(register).post(store));
-}
-
-async fn register() -> Markup {
-    return html! {
-        (DOCTYPE)
-        html data-theme="light" {
-            head {
-                meta charset="utf-8";
-                meta name="viewport" content="width=device-width";
-                title { "Register" }
-                link rel="stylesheet" href="/public/css/app.css";
-                script src="https://unpkg.com/htmx.org@1.9.6" {}
-            }
-            body class="grid place-items-center h-[100dvh] bg-blue-50" {
-                form class="card shadow-md bg-white w-96 -translate-y-1/4" hx-post="/register" novalidate {
-                    div class="card-body " {
-                        h1 class="card-title text-center text-2xl" { "Đăng Ký" }
-                        div class="form-control" {
-                            label class="label" for="username" {
-                                span { "Username: " span class="text-red-500" { "*" } }
-                            }
-                            input id="username"
-                                    type="input"
-                                    class="input input-bordered bg-white"
-                                    name="username"
-                                    value=""
-                                    required;
-                        }
-                        div class="form-control" {
-                            label class="label" for="emaill" {
-                                span { "Email: " span class="text-red-500" { "*" } }
-                            }
-                            input id="email"
-                                    type="email"
-                                    class="input input-bordered bg-white"
-                                    name="email"
-                                    value=""
-                                    required;
-                        }
-                        div class="form-control" {
-                            label class="label" for="password" {
-                                span { "Password: " span class="text-red-500" { "*" } }
-                            }
-                            input id="password"
-                                    type="password"
-                                    class="input input-bordered bg-white"
-                                    name="password"
-                                    value=""
-                                    required;
-                        }
-                        div class="form-control" {
-                            label class="label" for="password_confirmation" {
-                                span { "Confirm Password: " span class="text-red-500" { "*" } }
-                            }
-                            input id="password_confirmation"
-                                    type="password"
-                                    class="input input-bordered bg-white"
-                                    name="password_confirmation"
-                                    value=""
-                                    required;
-                        }
-                        div class="flex justify-end items-center gap-4 mt-4" {
-                            a href="/login" class="underline" { "Đã có tài khoản?" }
-                            button type="submit" class="btn btn-primary text-white" {
-                                span class="loading loading-spinner loading-sm htmx-indicator" {}
-                                "Lưu"
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    };
+    return Router::new().route("/register", get(register_page).post(store));
 }
 
 async fn store(ValidatedForm(request): ValidatedForm<RegisterRequest>) {}
