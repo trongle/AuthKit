@@ -1,4 +1,4 @@
-mod http;
+use hands_on_maud::http;
 
 #[tokio::main]
 async fn main() {
