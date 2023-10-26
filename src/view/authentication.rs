@@ -12,14 +12,16 @@ pub async fn register_page() -> Markup {
                 link rel="stylesheet" href="/public/css/app.css";
                 script src="https://unpkg.com/htmx.org@1.9.6" {}
             }
-            body class="grid place-items-center h-[100dvh] bg-blue-50" {
-                div class="card shadow-md bg-white w-96 -translate-y-1/4" {
-                    (register_form(html! {
-                        (input("Username", "username", None, None))
-                        (input("Email", "email", None, None))
-                        (input("Password", "password", None, None))
-                        (input("Password Confirmation", "password_confirmation", None, None))
-                    }))
+            body {
+                main class="h-[100dvh] bg-blue-50 overflow-auto" {
+                    div class="card shadow-md bg-white w-96 m-auto top-20" {
+                        (register_form(html! {
+                            (input("Username", "username", None, None))
+                            (input("Email", "email", None, None))
+                            (input("Password", "password", None, None))
+                            (input("Password Confirmation", "password_confirmation", None, None))
+                        }))
+                    }
                 }
             }
         }
