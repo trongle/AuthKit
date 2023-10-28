@@ -1,5 +1,5 @@
 use super::{utils::deserialize_empty_string_as_none, AppContext};
-use crate::view::authentication::{Input, InputKind};
+use crate::view::input::{Input, InputKind};
 use axum::{
     extract::{Form, State},
     routing::post,
