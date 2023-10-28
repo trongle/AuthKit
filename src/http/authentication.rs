@@ -18,23 +18,24 @@ use axum::{
 };
 use maud::{html, Markup, PreEscaped};
 use serde::Deserialize;
-use validator::{validate_email, Validate};
+use validator::{validate_email, validate_length, Validate};
 
 pub fn router() -> Router<AppContext> {
     return Router::new()
         .route("/register", get(register_page).post(store))
-        .route("/check-email", post(check_email));
+        .route("/check-email", post(check_email))
+        .route("/check-username", post(check_username));
 }
 
 #[derive(Deserialize, Debug, Validate)]
 struct RegisterRequest {
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     #[validate(
-        required(message = "This field is required and the length is in range 5-12"),
+        required(message = "This field is required and the length must be in range 5-12"),
         length(
             min = 5,
             max = 12,
-            message = "This field is required and the length is in range 5-12"
+            message = "This field is required and the length must be in range 5-12"
         )
     )]
     username: Option<String>,
@@ -102,24 +103,63 @@ async fn check_email(
 
     email_input = email_input.value(&email);
 
-    if validate_email(&email) {
-        let result = sqlx::query!("select count(*) as count from users where email = ?", email)
-            .fetch_one(&db)
-            .await
-            .unwrap();
+    if !validate_email(&email) {
+        return html! {
+            (email_input.errors(Some(&vec!["Invalid email.".to_string()])))
+        };
+    }
 
-        if result.count >= 1 {
-            html! {
-                (email_input.errors(Some(&vec!["Email already exists.".to_string()])))
-            }
-        } else {
-            html! { (email_input) }
+    let result = sqlx::query!("select count(*) as count from users where email = ?", email)
+        .fetch_one(&db)
+        .await
+        .unwrap();
+
+    return if result.count >= 1 {
+        html! {
+            (email_input.errors(Some(&vec!["Email already exists.".to_string()])))
         }
     } else {
-        html! {
-            (email_input.errors(Some(&vec!["Invalid email.".to_string()])))
-        }
+        html! { (email_input) }
+    };
+}
+
+#[derive(Deserialize)]
+struct CheckUsernameRequest {
+    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
+    username: Option<String>,
+}
+
+async fn check_username(
+    State(AppContext { db }): State<AppContext>,
+    Form(request): Form<CheckUsernameRequest>,
+) -> Markup {
+    let mut username_input = Input::new("Username", "username");
+
+    if request.username.is_none() {
+        return html! { (username_input.errors(Some(&vec!["This field is required.".to_string()]))) };
     }
+
+    let username = request.username.unwrap();
+
+    username_input = username_input.value(&username);
+
+    if !validate_length(&username, Some(5), Some(12), None) {
+        return html! { (username_input.errors(Some(&vec!["The length must be in range 5-12".to_string()]))) };
+    }
+
+    let result = sqlx::query!(
+        "select count(*) as count from users where username = ?",
+        username
+    )
+    .fetch_one(&db)
+    .await
+    .unwrap();
+
+    return if result.count >= 1 {
+        html! { (username_input.errors(Some(&vec!["Already exists.".to_string()]))) }
+    } else {
+        html! { (username_input) }
+    };
 }
 
 async fn store(
