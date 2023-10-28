@@ -1,21 +1,29 @@
+use std::collections::HashMap;
+
 use axum::{extract::rejection::FormRejection, response::IntoResponse};
 use maud::{Markup, PreEscaped};
 
+pub type ErrorBag = HashMap<String, Vec<String>>;
+
 #[derive(Debug)]
-pub enum ApplicationError<T> {
-    ValidationError(validator::ValidationErrors, T),
+pub enum ApplicationError {
+    ValidationError(Option<Markup>),
     AxumFormRejection(FormRejection),
+    ServerError(String),
 }
 
 pub(super) trait RenderErrorsAsHtml {
-    fn render(&self, errs: validator::ValidationErrors) -> Markup;
+    fn render(&self, errs: &ErrorBag) -> Markup;
 }
 
-impl<T: RenderErrorsAsHtml> IntoResponse for ApplicationError<T> {
+impl IntoResponse for ApplicationError {
     fn into_response(self) -> axum::response::Response {
         return match self {
-            ApplicationError::ValidationError(errs, html_renderer) => html_renderer.render(errs),
+            ApplicationError::ValidationError(html) => {
+                html.or(Some(PreEscaped("".to_string()))).unwrap()
+            }
             ApplicationError::AxumFormRejection(_) => PreEscaped("".to_string()),
+            ApplicationError::ServerError(_) => PreEscaped("".to_string()),
         }
         .into_response();
     }
