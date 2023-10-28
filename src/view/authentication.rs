@@ -68,15 +68,15 @@ impl<'a> Render for Input<'a> {
                         required
                         hx-trigger="keyup changed delay:500ms"
                         hx-swap=[match self.field_name {
-                            "email" => Some("morphdom"),
+                            "email" | "username" => Some("morphdom"),
                             _ => None
                         }]
                         hx-post=[match self.field_name {
-                            "email" => Some("/check-email"),
+                            "email" | "username" => Some(format!("/check-{}", self.field_name)),
                             _ => None
                         }]
                         hx-target=[match self.field_name {
-                            "email" => Some(format!("#control_{}",self.field_name)),
+                            "email" | "username" => Some(format!("#control_{}",self.field_name)),
                             _ => None
                         }];
                 (self.errors.map_or(PreEscaped("".to_string()), |errors| error(self.field_name, &errors)))
