@@ -3,6 +3,8 @@ use sqlx::MySqlPool;
 use tower_http::services::ServeDir;
 
 mod authentication;
+mod check_email;
+mod check_username;
 mod error;
 mod extractor;
 mod utils;
@@ -24,5 +26,7 @@ pub async fn server(db: MySqlPool) {
 fn router_web() -> Router<AppContext> {
     return Router::new()
         .nest_service("/public", ServeDir::new("public"))
-        .merge(authentication::router());
+        .merge(authentication::router())
+        .merge(check_email::router())
+        .merge(check_username::router());
 }
