@@ -34,13 +34,13 @@ pub async fn register_page() -> Markup {
 pub fn register_form(inputs: Markup) -> Markup {
     return html! {
         form class="card-body" hx-post="/register" hx-swap="outerHTML" novalidate {
-            h1 class="card-title text-center text-2xl" { "Đăng Ký" }
+            h1 class="card-title text-center text-2xl" { "Register" }
             (inputs)
             div class="flex justify-end items-center gap-4 mt-4" {
-                a href="/login" class="underline" { "Đã có tài khoản?" }
+                a href="/login" class="underline" { "Already has account?" }
                 button type="submit" class="btn btn-primary text-white" {
                     span class="loading loading-spinner loading-sm htmx-indicator" {}
-                    "Lưu"
+                    "Register"
                 }
             }
         }

@@ -8,6 +8,7 @@ mod check_username;
 mod error;
 mod extractor;
 mod utils;
+mod login;
 
 #[derive(Clone)]
 pub struct AppContext {
