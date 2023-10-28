@@ -4,7 +4,8 @@ use super::{
     utils::deserialize_empty_string_as_none,
     AppContext,
 };
-use crate::view::authentication::{register_form, register_page, Input, InputKind};
+use crate::view::authentication::{register_form, register_page};
+use crate::view::input::{Input, InputKind};
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHasher,
