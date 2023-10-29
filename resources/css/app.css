@@ -23,7 +23,8 @@
 
 .card,
 .btn,
-.input {
+.input,
+.alert {
 	@apply rounded-none;
 }
 

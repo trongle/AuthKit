@@ -1,6 +1,7 @@
 use super::{
     error::{ApplicationError, ErrorBag, RenderErrorsAsHtml},
     extractor::ValidatedForm,
+    login,
     utils::deserialize_empty_string_as_none,
     AppContext,
 };
@@ -10,13 +11,16 @@ use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHasher,
 };
-use axum::{extract::State, http::HeaderMap, response::IntoResponse, routing::get, Router};
-use maud::{html, Markup, PreEscaped};
+use axum::{extract::State, response::IntoResponse, routing::get, Router};
+use cookie::Cookie;
+use maud::{html, Markup};
 use serde::Deserialize;
 use validator::Validate;
 
 pub fn router() -> Router<AppContext> {
-    return Router::new().route("/register", get(register_page).post(store));
+    return Router::new()
+        .route("/register", get(register_page).post(store))
+        .merge(login::router());
 }
 
 #[derive(Deserialize, Debug, Validate)]
@@ -88,57 +92,24 @@ async fn store(
     .execute(&db)
     .await;
 
-    let mut headers = HeaderMap::new();
     return match result {
-        Ok(_) => {
-            headers.insert("HX-Location", "/login".parse().unwrap());
+        Ok(_) => Ok([
+            ("HX-Location", "/login".to_string()),
+            (
+                "Set-Cookie",
+                Cookie::build((
+                    "successfully_registered",
+                    "Your account has been created!. Now try to login with the registered infomation.",
+                ))
+                .same_site(cookie::SameSite::Strict)
+                .http_only(true)
+                .build()
+                .encoded()
+                .to_string(),
+            ),
+        ]),
 
-            Ok((headers, PreEscaped("".to_string())))
-        }
-        Err(err) => match err {
-            sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
-                let (label, field_name, input_type, value) =
-                    if db_err.message().contains("users.username") {
-                        (
-                            "Username",
-                            "username",
-                            "text",
-                            request.username.as_deref().unwrap_or(""),
-                        )
-                    } else {
-                        (
-                            "Email",
-                            "email",
-                            "email",
-                            request.email.as_deref().unwrap_or(""),
-                        )
-                    };
-
-                let html = html! {
-                    input id=(field_name)
-                        type=(input_type)
-                        class={ "input input-bordered bg-white input-error" }
-                        name=(field_name)
-                        value=(value)
-                        required;
-                        label class="label text-red-500" for="username" {
-                            span { (label)" already exists." }
-                    }
-                };
-
-                headers.insert("HX-Reswap", "innerHTML".parse().unwrap());
-                headers.insert(
-                    "HX-Retarget",
-                    format!("#control_{}", field_name).parse().unwrap(),
-                );
-
-                Ok((headers, html))
-            }
-            _ => Err(ApplicationError::ServerError(format!(
-                "Failed to register: {}",
-                err
-            ))),
-        },
+        Err(err) => Err(ApplicationError::ServerError(err.to_string())),
     };
 }
 

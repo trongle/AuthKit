@@ -23,7 +23,10 @@ impl IntoResponse for ApplicationError {
                 html.or(Some(PreEscaped("".to_string()))).unwrap()
             }
             ApplicationError::AxumFormRejection(_) => PreEscaped("".to_string()),
-            ApplicationError::ServerError(_) => PreEscaped("".to_string()),
+            ApplicationError::ServerError(_) => {
+                println!("Server error: {:?}", self);
+                PreEscaped("".to_string())
+            }
         }
         .into_response();
     }
