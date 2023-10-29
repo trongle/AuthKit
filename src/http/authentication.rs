@@ -99,7 +99,7 @@ async fn store(
                 "Set-Cookie",
                 Cookie::build((
                     "successfully_registered",
-                    "Your account has been created!. Now try to login with the registered infomation.",
+                    "Your account has been created! Now, please try to login with the registered infomation.",
                 ))
                 .same_site(cookie::SameSite::Strict)
                 .http_only(true)
