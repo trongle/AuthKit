@@ -9,9 +9,11 @@ edition = "2021"
 argon2 = "0.5.2"
 async-trait = "0.1.74"
 axum = "0.6.20"
+cookie = { version = "0.18.0", features = ["percent-encode"] }
 maud = { version = "0.25.0", features = ["axum"] }
 serde = { version = "1.0.189", features = ["derive"] }
 sqlx = { version = "0.7.2", features = ["runtime-tokio", "tls-rustls", "mysql"] }
+time = "0.3.30"
 tokio = { version = "1.33.0", features = ["full"] }
 tower-http = { version = "0.4.4", features = ["fs", "trace"] }
 validator = { version = "0.16.1", features = ["derive"] }

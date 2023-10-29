@@ -10,7 +10,7 @@ use serde::Deserialize;
 use validator::validate_email;
 
 pub fn router() -> Router<AppContext> {
-    return Router::new().route("/checkin-email", post(check_email));
+    return Router::new().route("/check-email", post(check_email));
 }
 
 #[derive(Deserialize)]
