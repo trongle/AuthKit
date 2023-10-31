@@ -5,10 +5,11 @@ use tower_http::services::ServeDir;
 mod authentication;
 mod check_email;
 mod check_username;
+mod cookie;
 mod error;
 mod extractor;
-mod utils;
 mod login;
+mod utils;
 
 #[derive(Clone)]
 pub struct AppContext {
@@ -29,5 +30,6 @@ fn router_web() -> Router<AppContext> {
         .nest_service("/public", ServeDir::new("public"))
         .merge(authentication::router())
         .merge(check_email::router())
-        .merge(check_username::router());
+        .merge(check_username::router())
+        .merge(cookie::router());
 }

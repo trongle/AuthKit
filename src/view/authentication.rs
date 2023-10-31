@@ -55,12 +55,12 @@ pub fn register_form(inputs: Markup) -> Markup {
     };
 }
 
-pub fn login_page(successfully_registered: Option<&str>) -> Markup {
+pub fn login_page(successfully_registered: bool) -> Markup {
     return html! {
         (layout("Login", html! {
-            @if let Some(message) = successfully_registered {
+            @if  successfully_registered {
                 div class="alert alert-success" {
-                    (message)
+                    "Your account has been created!. Now try to login with the registered infomation."
                 }
             }
             (login_form(html! {

@@ -97,15 +97,12 @@ async fn store(
             ("HX-Location", "/login".to_string()),
             (
                 "Set-Cookie",
-                Cookie::build((
-                    "successfully_registered",
-                    "Your account has been created!. Now try to login with the registered infomation.",
-                ))
-                .same_site(cookie::SameSite::Strict)
-                .http_only(true)
-                .build()
-                .encoded()
-                .to_string(),
+                Cookie::build(("successfully_registered", "true"))
+                    .same_site(cookie::SameSite::Strict)
+                    .http_only(true)
+                    .build()
+                    .encoded()
+                    .to_string(),
             ),
         ]),
 
