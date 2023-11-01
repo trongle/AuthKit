@@ -7,6 +7,7 @@ pub struct Input<'a> {
     pub kind: InputKind,
     pub value: Option<&'a str>,
     pub errors: Option<&'a Vec<String>>,
+    pub custom_validation: Option<OnKeyUpValidation>,
 }
 
 pub enum InputKind {
@@ -25,6 +26,20 @@ impl Display for InputKind {
     }
 }
 
+pub enum OnKeyUpValidation {
+    Username,
+    Email,
+}
+
+impl Display for OnKeyUpValidation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        return f.write_str(match self {
+            OnKeyUpValidation::Username => "/check-username",
+            OnKeyUpValidation::Email => "/check-email",
+        });
+    }
+}
+
 impl<'a> Input<'a> {
     pub fn new(label: &'a str, field_name: &'a str) -> Self {
         return Self {
@@ -33,6 +48,7 @@ impl<'a> Input<'a> {
             kind: InputKind::Text,
             value: None,
             errors: None,
+            custom_validation: None,
         };
     }
 
@@ -50,6 +66,11 @@ impl<'a> Input<'a> {
         self.value = Some(value);
         return self;
     }
+
+    pub fn custom_validation(mut self, custom_validation: OnKeyUpValidation) -> Self {
+        self.custom_validation = Some(custom_validation);
+        return self;
+    }
 }
 
 impl<'a> Render for Input<'a> {
@@ -65,19 +86,10 @@ impl<'a> Render for Input<'a> {
                         name=(self.field_name)
                         value=(self.value.unwrap_or(""))
                         required
-                        hx-trigger="keyup changed delay:500ms"
-                        hx-swap=[match self.field_name {
-                            "email" | "username" => Some("morphdom"),
-                            _ => None
-                        }]
-                        hx-post=[match self.field_name {
-                            "email" | "username" => Some(format!("/check-{}", self.field_name)),
-                            _ => None
-                        }]
-                        hx-target=[match self.field_name {
-                            "email" | "username" => Some(format!("#control_{}",self.field_name)),
-                            _ => None
-                        }];
+                        hx-trigger=[self.custom_validation.as_ref().map(|_| "keyup changed delay:500ms")]
+                        hx-swap=[self.custom_validation.as_ref().map(|_| "morphdom")]
+                        hx-post=[self.custom_validation.as_ref().map(|v| v.to_string())]
+                        hx-target=[self.custom_validation.as_ref().map(|_| format!("#control_{}",self.field_name))];
                 (self.errors.map_or(PreEscaped("".to_string()), |errors| error(self.field_name, &errors)))
             }
         };

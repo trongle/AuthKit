@@ -1,18 +1,18 @@
 use super::AppContext;
 use crate::{
     http::{
-        error::{ErrorBag, RenderErrorsAsHtml},
+        error::{ApplicationError, ErrorBag, RenderErrorsAsHtml},
         extractor::ValidatedForm,
         utils::deserialize_empty_string_as_none,
     },
-    view::{
-        authentication::{login_form, login_page},
-        input::{Input, InputKind},
-    },
+    view::authentication::{login_form, login_page},
 };
-use axum::{body::BoxBody, http::HeaderMap, response::IntoResponse, routing::get, Router};
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use axum::{
+    body::BoxBody, extract::State, http::HeaderMap, response::IntoResponse, routing::get, Router,
+};
 use cookie::Cookie;
-use maud::{html, Markup};
+use maud::Markup;
 use serde::Deserialize;
 use time::{self, Duration};
 use validator::Validate;
@@ -64,7 +64,7 @@ async fn get_login_page(headers: HeaderMap) -> impl IntoResponse {
 }
 
 #[derive(Deserialize, Validate, Debug)]
-pub struct LoginRequest {
+pub struct LoginAttempRequest {
     #[validate(required(message = "This field is required."))]
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub username: Option<String>,
@@ -74,12 +74,30 @@ pub struct LoginRequest {
     pub password: Option<String>,
 }
 
-impl RenderErrorsAsHtml for LoginRequest {
+impl RenderErrorsAsHtml for LoginAttempRequest {
     fn render(&self, errors: &ErrorBag) -> Markup {
         return login_form(Some(self), Some(errors));
     }
 }
 
-async fn store(ValidatedForm(request): ValidatedForm<LoginRequest>) {
-    println!("{:?}", request);
+async fn store(
+    State(AppContext { db }): State<AppContext>,
+    ValidatedForm(request): ValidatedForm<LoginAttempRequest>,
+) -> Result<impl IntoResponse, ApplicationError> {
+    let result = sqlx::query!(
+        "select password from users where username = ?",
+        request.username
+    )
+    .fetch_one(&db)
+    .await
+    .map_err(|e| ApplicationError::ServerError(e.to_string()))?;
+
+    let password_hash = PasswordHash::new(&result.password)
+        .map_err(|e| ApplicationError::ServerError(e.to_string()))?;
+
+    Argon2::default()
+        .verify_password(request.password.unwrap().as_bytes(), &password_hash)
+        .map_err(|e| ApplicationError::ServerError(e.to_string()))?;
+
+    Ok(())
 }

@@ -10,7 +10,7 @@ mod error;
 mod extractor;
 mod utils;
 
-pub use authentication::LoginRequest;
+pub use authentication::LoginAttempRequest;
 pub use error::ErrorBag;
 
 #[derive(Clone)]

@@ -1,6 +1,6 @@
 use super::input::{Input, InputKind};
 use crate::ErrorBag;
-use crate::LoginRequest;
+use crate::LoginAttempRequest;
 use maud::{html, Markup, DOCTYPE};
 
 pub fn layout(title: &str, body: Markup) -> Markup {
@@ -69,7 +69,7 @@ pub fn login_page(successfully_registered: bool) -> Markup {
     };
 }
 
-pub fn login_form(request: Option<&LoginRequest>, errors: Option<&ErrorBag>) -> Markup {
+pub fn login_form(request: Option<&LoginAttempRequest>, errors: Option<&ErrorBag>) -> Markup {
     let mut username_input = Input::new("Username", "username").value(
         request
             .map(|req| req.username.as_deref().unwrap_or(""))

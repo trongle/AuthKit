@@ -4,7 +4,7 @@ use axum::Router;
 mod login;
 mod register;
 
-pub use login::LoginRequest;
+pub use login::LoginAttempRequest;
 
 pub fn router() -> Router<AppContext> {
     return Router::new()
