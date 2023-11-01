@@ -1,16 +1,14 @@
-use super::{
-    error::{ApplicationError, ErrorBag, RenderErrorsAsHtml},
-    extractor::ValidatedForm,
-    login,
-    utils::deserialize_empty_string_as_none,
-    AppContext,
-};
+use crate::http::error::{ApplicationError, ErrorBag, RenderErrorsAsHtml};
+use crate::http::extractor::ValidatedForm;
+use crate::http::{utils::deserialize_empty_string_as_none, AppContext};
 use crate::view::authentication::{register_form, register_page};
 use crate::view::input::{Input, InputKind};
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHasher,
 };
+use axum::http::HeaderMap;
+use axum::response::Response;
 use axum::{extract::State, response::IntoResponse, routing::get, Router};
 use cookie::Cookie;
 use maud::{html, Markup};
@@ -18,9 +16,7 @@ use serde::Deserialize;
 use validator::Validate;
 
 pub fn router() -> Router<AppContext> {
-    return Router::new()
-        .route("/register", get(register_page).post(store))
-        .merge(login::router());
+    return Router::new().route("/register", get(register_page).post(store));
 }
 
 #[derive(Deserialize, Debug, Validate)]
@@ -77,6 +73,38 @@ impl RenderErrorsAsHtml for RegisterRequest {
     }
 }
 
+struct SuccessfulRegistrationResponse {
+    redirect_to: String,
+}
+
+impl SuccessfulRegistrationResponse {
+    fn new(redirect_to: String) -> Self {
+        return Self { redirect_to };
+    }
+}
+
+impl IntoResponse for SuccessfulRegistrationResponse {
+    fn into_response(self) -> Response {
+        let mut headers = HeaderMap::new();
+
+        headers.insert("HX-Location", self.redirect_to.parse().unwrap());
+        headers.insert(
+            "Set-Cookie",
+            Cookie::build(("successfully_registered", "true"))
+                .secure(true)
+                .same_site(cookie::SameSite::Strict)
+                .http_only(true)
+                .build()
+                .encoded()
+                .to_string()
+                .parse()
+                .unwrap(),
+        );
+
+        return (headers).into_response();
+    }
+}
+
 async fn store(
     State(AppContext { db }): State<AppContext>,
     ValidatedForm(request): ValidatedForm<RegisterRequest>,
@@ -93,19 +121,7 @@ async fn store(
     .await;
 
     return match result {
-        Ok(_) => Ok([
-            ("HX-Location", "/login".to_string()),
-            (
-                "Set-Cookie",
-                Cookie::build(("successfully_registered", "true"))
-                    .same_site(cookie::SameSite::Strict)
-                    .http_only(true)
-                    .build()
-                    .encoded()
-                    .to_string(),
-            ),
-        ]),
-
+        Ok(_) => Ok(SuccessfulRegistrationResponse::new("/login".to_string())),
         Err(err) => Err(ApplicationError::ServerError(err.to_string())),
     };
 }

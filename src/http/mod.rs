@@ -8,7 +8,6 @@ mod check_username;
 mod cookie;
 mod error;
 mod extractor;
-mod login;
 mod utils;
 
 #[derive(Clone)]
