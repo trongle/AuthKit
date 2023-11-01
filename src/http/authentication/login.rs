@@ -64,22 +64,19 @@ async fn get_login_page(headers: HeaderMap) -> impl IntoResponse {
 }
 
 #[derive(Deserialize, Validate, Debug)]
-struct LoginRequest {
+pub struct LoginRequest {
     #[validate(required(message = "This field is required."))]
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
-    username: Option<String>,
+    pub username: Option<String>,
 
     #[validate(required(message = "This field is required."))]
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
-    password: Option<String>,
+    pub password: Option<String>,
 }
 
 impl RenderErrorsAsHtml for LoginRequest {
     fn render(&self, errors: &ErrorBag) -> Markup {
-        return login_form(html! {
-            (Input::new("Username", "username").errors(errors.get("username")).value(self.username.as_deref().unwrap_or("")))
-            (Input::new("Password", "password").kind(InputKind::Password).errors(errors.get("password")).value(self.password.as_deref().unwrap_or("")))
-        });
+        return login_form(Some(self), Some(errors));
     }
 }
 

@@ -1,6 +1,7 @@
-use maud::{html, Markup, DOCTYPE};
-
 use super::input::{Input, InputKind};
+use crate::ErrorBag;
+use crate::LoginRequest;
+use maud::{html, Markup, DOCTYPE};
 
 pub fn layout(title: &str, body: Markup) -> Markup {
     return html! {
@@ -59,23 +60,43 @@ pub fn login_page(successfully_registered: bool) -> Markup {
     return html! {
         (layout("Login", html! {
             @if  successfully_registered {
-                div class="alert alert-success" {
-                    "Your account has been created!. Now try to login with the registered infomation."
-                }
+                    div class="alert alert-success" {
+                        "Your account has been created!. Now try to login with the registered infomation."
+                    }
             }
-            (login_form(html! {
-                (Input::new("Username", "username"))
-                (Input::new("Password", "password").kind(InputKind::Password))
-            }))
+            (login_form(None, None))
         }))
     };
 }
 
-pub fn login_form(inputs: Markup) -> Markup {
+pub fn login_form(request: Option<&LoginRequest>, errors: Option<&ErrorBag>) -> Markup {
+    let mut username_input = Input::new("Username", "username").value(
+        request
+            .map(|req| req.username.as_deref().unwrap_or(""))
+            .unwrap_or(""),
+    );
+    let mut password_input = Input::new("Password", "password").value(
+        request
+            .map(|req| req.password.as_deref().unwrap_or(""))
+            .unwrap_or(""),
+    );
+
+    username_input = if let Some(e) = errors {
+        username_input.errors(e.get("username"))
+    } else {
+        username_input
+    };
+    password_input = if let Some(e) = errors {
+        password_input.errors(e.get("password"))
+    } else {
+        password_input
+    };
+
     return html! {
         form class="card-body" hx-post="/login" hx-swap="outerHTML" novalidate {
             h1 class="card-title text-center text-2xl" { "Login" }
-            (inputs)
+            (username_input)
+            (password_input)
             div class="flex justify-end items-center gap-4 my-4" {
                 a href="/register" class="underline" { "Don't have account, yet?" }
                 button type="submit" class="btn btn-primary text-white" {

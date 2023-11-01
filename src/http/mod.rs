@@ -10,6 +10,9 @@ mod error;
 mod extractor;
 mod utils;
 
+pub use authentication::LoginRequest;
+pub use error::ErrorBag;
+
 #[derive(Clone)]
 pub struct AppContext {
     db: MySqlPool,
