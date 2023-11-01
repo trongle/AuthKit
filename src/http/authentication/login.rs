@@ -12,7 +12,7 @@ use axum::{
     body::BoxBody, extract::State, http::HeaderMap, response::IntoResponse, routing::get, Router,
 };
 use cookie::Cookie;
-use maud::Markup;
+use maud::{Markup, PreEscaped};
 use serde::Deserialize;
 use time::{self, Duration};
 use validator::Validate;
@@ -84,20 +84,44 @@ async fn store(
     State(AppContext { db }): State<AppContext>,
     ValidatedForm(request): ValidatedForm<LoginAttempRequest>,
 ) -> Result<impl IntoResponse, ApplicationError> {
+    // Find the user by username.
     let result = sqlx::query!(
         "select password from users where username = ?",
         request.username
     )
-    .fetch_one(&db)
+    .fetch_optional(&db)
     .await
     .map_err(|e| ApplicationError::ServerError(e.to_string()))?;
 
-    let password_hash = PasswordHash::new(&result.password)
-        .map_err(|e| ApplicationError::ServerError(e.to_string()))?;
+    // If the user exists, then we will verify
+    // the password from the request with hashed
+    // one stored in the database.
+    let result = if let Some(record) = result {
+        let password_hash = PasswordHash::new(&record.password)
+            .map_err(|e| ApplicationError::ServerError(e.to_string()))?;
 
-    Argon2::default()
-        .verify_password(request.password.unwrap().as_bytes(), &password_hash)
-        .map_err(|e| ApplicationError::ServerError(e.to_string()))?;
+        let result = Argon2::default().verify_password(
+            request.password.as_ref().unwrap().as_bytes(),
+            &password_hash,
+        );
 
-    Ok(())
+        Ok(result)
+    } else {
+        Err("")
+    };
+
+    // If everything ok, then we will create
+    // a logged in session for the user. And
+    // redirect the user to the home page.
+    if result.is_ok() {
+        return Ok(PreEscaped("".to_string()));
+    }
+
+    let mut errors = ErrorBag::new();
+    errors.insert(
+        "invalid_credentials".to_string(),
+        vec!["Invalid username or password".to_string()],
+    );
+
+    return Ok(login_form(Some(&request), Some(&errors)));
 }

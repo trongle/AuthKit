@@ -85,7 +85,7 @@ pub fn login_page(successfully_registered: bool) -> Markup {
         (layout("Login", html! {
             @if successfully_registered {
                 div class="alert alert-success" {
-                    "Your account has been created!. Now try to login with the registered infomation."
+                    "Your account has been created!. Now try to login with the registered information."
                 }
             }
             (login_form(None, None))
@@ -104,13 +104,20 @@ pub fn login_form(request: Option<&LoginAttempRequest>, errors: Option<&ErrorBag
             .map(|req| req.password.as_deref().unwrap_or(""))
             .unwrap_or(""),
     );
+    let mut invalid_credentials = None;
 
     if let Some(e) = errors {
         username_input = username_input.errors(e.get("username"));
-        password_input = password_input.errors(e.get("password"))
+        password_input = password_input.errors(e.get("password"));
+        invalid_credentials = e.get("invalid_credentials");
     }
 
     return html! {
+        @if let Some(e) = invalid_credentials {
+            div class="alert alert-error" {
+                (e[0])
+            }
+        }
         form class="card-body" hx-post="/login" hx-swap="outerHTML" novalidate {
             h1 class="card-title text-center text-2xl" { "Login" }
             (username_input)
