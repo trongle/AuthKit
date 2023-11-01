@@ -1,5 +1,6 @@
 use super::{utils::deserialize_empty_string_as_none, AppContext};
 use crate::view::input::Input;
+use crate::view::input::OnKeyUpValidation;
 use axum::{
     extract::{Form, State},
     routing::post,
@@ -23,7 +24,8 @@ async fn check_username(
     State(AppContext { db }): State<AppContext>,
     Form(request): Form<CheckUsernameRequest>,
 ) -> Markup {
-    let mut username_input = Input::new("Username", "username");
+    let mut username_input =
+        Input::new("Username", "username").custom_validation(OnKeyUpValidation::Username);
 
     if request.username.is_none() {
         return html! { (username_input.errors(Some(&vec!["This field is required.".to_string()]))) };

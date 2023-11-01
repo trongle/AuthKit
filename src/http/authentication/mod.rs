@@ -5,6 +5,7 @@ mod login;
 mod register;
 
 pub use login::LoginAttempRequest;
+pub use register::RegisterRequest;
 
 pub fn router() -> Router<AppContext> {
     return Router::new()

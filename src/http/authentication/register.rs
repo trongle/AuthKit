@@ -2,7 +2,6 @@ use crate::http::error::{ApplicationError, ErrorBag, RenderErrorsAsHtml};
 use crate::http::extractor::ValidatedForm;
 use crate::http::{utils::deserialize_empty_string_as_none, AppContext};
 use crate::view::authentication::{register_form, register_page};
-use crate::view::input::{Input, InputKind};
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHasher,
@@ -11,7 +10,7 @@ use axum::http::HeaderMap;
 use axum::response::Response;
 use axum::{extract::State, response::IntoResponse, routing::get, Router};
 use cookie::Cookie;
-use maud::{html, Markup};
+use maud::Markup;
 use serde::Deserialize;
 use validator::Validate;
 
@@ -20,7 +19,7 @@ pub fn router() -> Router<AppContext> {
 }
 
 #[derive(Deserialize, Debug, Validate)]
-struct RegisterRequest {
+pub struct RegisterRequest {
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     #[validate(
         required(message = "This field is required and the length must be in range 5-12"),
@@ -30,46 +29,30 @@ struct RegisterRequest {
             message = "This field is required and the length must be in range 5-12"
         )
     )]
-    username: Option<String>,
+    pub username: Option<String>,
 
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     #[validate(
         required(message = "This field is required."),
         email(message = "Invalid email.")
     )]
-    email: Option<String>,
+    pub email: Option<String>,
 
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     #[validate(required(message = "This field is required."))]
-    password: Option<String>,
+    pub password: Option<String>,
 
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     #[validate(
         required(message = "This field is required."),
         must_match(other = "password", message = "Does not match with password field.")
     )]
-    password_confirmation: Option<String>,
+    pub password_confirmation: Option<String>,
 }
 
 impl RenderErrorsAsHtml for RegisterRequest {
     fn render(&self, errors: &ErrorBag) -> Markup {
-        return register_form(html! {
-            (Input::new("Username", "username")
-                .value(self.username.as_deref().unwrap_or(""))
-                .errors(errors.get(&"username".to_string())))
-            (Input::new("Email", "email")
-                .kind(InputKind::Email)
-                .value(self.email.as_deref().unwrap_or(""))
-                .errors(errors.get(&"email".to_string())))
-            (Input::new("Password", "password")
-                .kind(InputKind::Password)
-                .value(self.password.as_deref().unwrap_or(""))
-                .errors(errors.get(&"password".to_string())))
-            (Input::new("Password Confirmation", "password_confirmation")
-                .kind(InputKind::Password)
-                .value(self.password_confirmation.as_deref().unwrap_or(""))
-                .errors(errors.get(&"password_confirmation".to_string())))
-        });
+        return register_form(Some(self), Some(errors));
     }
 }
 

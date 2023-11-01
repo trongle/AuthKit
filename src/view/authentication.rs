@@ -1,6 +1,7 @@
+use super::input::OnKeyUpValidation;
 use super::input::{Input, InputKind};
-use crate::ErrorBag;
 use crate::LoginAttempRequest;
+use crate::{ErrorBag, RegisterRequest};
 use maud::{html, Markup, DOCTYPE};
 
 pub fn layout(title: &str, body: Markup) -> Markup {
@@ -30,21 +31,44 @@ pub fn layout(title: &str, body: Markup) -> Markup {
 pub async fn register_page() -> Markup {
     return html! {
         (layout("Register", html! {
-            (register_form(html! {
-                (Input::new("Username", "username"))
-                (Input::new("Email", "email").kind(InputKind::Email))
-                (Input::new("Password", "password").kind(InputKind::Password))
-                (Input::new("Password Confirmation", "password_confirmation").kind(InputKind::Password))
-            }))
+            (register_form(None, None))
         }))
     };
 }
 
-pub fn register_form(inputs: Markup) -> Markup {
+pub fn register_form(request: Option<&RegisterRequest>, errors: Option<&ErrorBag>) -> Markup {
+    let mut username_input =
+        Input::new("Username", "username").custom_validation(OnKeyUpValidation::Username);
+    let mut email_input = Input::new("Email", "email")
+        .kind(InputKind::Email)
+        .custom_validation(OnKeyUpValidation::Email);
+    let mut password_input = Input::new("Password", "password").kind(InputKind::Password);
+    let mut password_confirmation_input =
+        Input::new("Password Confirmation", "password_confirmation").kind(InputKind::Password);
+
+    if let Some(e) = errors {
+        username_input = username_input.errors(e.get("username"));
+        email_input = email_input.errors(e.get("email"));
+        password_input = password_input.errors(e.get("password"));
+        password_confirmation_input =
+            password_confirmation_input.errors(e.get("password_confirmation"));
+    }
+
+    if let Some(req) = request {
+        username_input = username_input.value(req.username.as_deref().unwrap_or(""));
+        email_input = email_input.value(req.email.as_deref().unwrap_or(""));
+        password_input = password_input.value(req.password.as_deref().unwrap_or(""));
+        password_confirmation_input =
+            password_confirmation_input.value(req.password_confirmation.as_deref().unwrap_or(""));
+    }
+
     return html! {
         form class="card-body" hx-post="/register" hx-swap="outerHTML" novalidate {
             h1 class="card-title text-center text-2xl" { "Register" }
-            (inputs)
+            (username_input)
+            (email_input)
+            (password_input)
+            (password_confirmation_input)
             div class="flex justify-end items-center gap-4 mt-4" {
                 a href="/login" class="underline" { "Already has account?" }
                 button type="submit" class="btn btn-primary text-white" {
@@ -59,10 +83,10 @@ pub fn register_form(inputs: Markup) -> Markup {
 pub fn login_page(successfully_registered: bool) -> Markup {
     return html! {
         (layout("Login", html! {
-            @if  successfully_registered {
-                    div class="alert alert-success" {
-                        "Your account has been created!. Now try to login with the registered infomation."
-                    }
+            @if successfully_registered {
+                div class="alert alert-success" {
+                    "Your account has been created!. Now try to login with the registered infomation."
+                }
             }
             (login_form(None, None))
         }))
@@ -81,16 +105,10 @@ pub fn login_form(request: Option<&LoginAttempRequest>, errors: Option<&ErrorBag
             .unwrap_or(""),
     );
 
-    username_input = if let Some(e) = errors {
-        username_input.errors(e.get("username"))
-    } else {
-        username_input
-    };
-    password_input = if let Some(e) = errors {
-        password_input.errors(e.get("password"))
-    } else {
-        password_input
-    };
+    if let Some(e) = errors {
+        username_input = username_input.errors(e.get("username"));
+        password_input = password_input.errors(e.get("password"))
+    }
 
     return html! {
         form class="card-body" hx-post="/login" hx-swap="outerHTML" novalidate {
