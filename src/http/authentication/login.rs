@@ -9,10 +9,16 @@ use crate::{
 };
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::{
-    body::BoxBody, extract::State, http::HeaderMap, response::IntoResponse, routing::get, Router,
+    body::BoxBody,
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+    routing::get,
+    Router,
 };
+use axum_session::{Session, SessionRedisPool};
 use cookie::Cookie;
-use maud::{Markup, PreEscaped};
+use maud::Markup;
 use serde::Deserialize;
 use time::{self, Duration};
 use validator::Validate;
@@ -81,12 +87,13 @@ impl RenderErrorsAsHtml for LoginAttempRequest {
 }
 
 async fn store(
+    session: Session<SessionRedisPool>,
     State(AppContext { db }): State<AppContext>,
     ValidatedForm(request): ValidatedForm<LoginAttempRequest>,
 ) -> Result<impl IntoResponse, ApplicationError> {
     // Find the user by username.
     let result = sqlx::query!(
-        "select password from users where username = ?",
+        "select id, username, password from users where username = ?",
         request.username
     )
     .fetch_optional(&db)
@@ -96,7 +103,7 @@ async fn store(
     // If the user exists, then we will verify
     // the password from the request with hashed
     // one stored in the database.
-    let result = if let Some(record) = result {
+    if let Some(record) = result {
         let password_hash = PasswordHash::new(&record.password)
             .map_err(|e| ApplicationError::ServerError(e.to_string()))?;
 
@@ -105,23 +112,25 @@ async fn store(
             &password_hash,
         );
 
-        Ok(result)
-    } else {
-        Err("")
+        // If everything ok, then we will create
+        // a logged in session for the user. And
+        // redirect the user to the home page.
+        if result.is_ok() {
+            session.renew();
+            session.set("user_id", record.id);
+            session.set("username", record.username);
+            return Ok((StatusCode::SEE_OTHER, [("HX-Location", "/home")]).into_response());
+        }
     };
 
-    // If everything ok, then we will create
-    // a logged in session for the user. And
-    // redirect the user to the home page.
-    if result.is_ok() {
-        return Ok(PreEscaped("".to_string()));
-    }
-
+    // In case the user does not exist or the verification
+    // of the password failed, then we will return the
+    // form with the errors.
     let mut errors = ErrorBag::new();
     errors.insert(
         "invalid_credentials".to_string(),
         vec!["Invalid username or password".to_string()],
     );
 
-    return Ok(login_form(Some(&request), Some(&errors)));
+    return Ok(login_form(Some(&request), Some(&errors)).into_response());
 }

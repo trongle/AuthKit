@@ -83,12 +83,14 @@ pub fn register_form(request: Option<&RegisterRequest>, errors: Option<&ErrorBag
 pub fn login_page(successfully_registered: bool) -> Markup {
     return html! {
         (layout("Login", html! {
-            @if successfully_registered {
-                div class="alert alert-success" {
-                    "Your account has been created!. Now try to login with the registered information."
+            div {
+                @if successfully_registered {
+                    div class="alert alert-success" {
+                        "Your account has been created!. Now try to login with the registered information."
+                    }
                 }
+                (login_form(None, None))
             }
-            (login_form(None, None))
         }))
     };
 }
@@ -99,11 +101,13 @@ pub fn login_form(request: Option<&LoginAttempRequest>, errors: Option<&ErrorBag
             .map(|req| req.username.as_deref().unwrap_or(""))
             .unwrap_or(""),
     );
-    let mut password_input = Input::new("Password", "password").value(
-        request
-            .map(|req| req.password.as_deref().unwrap_or(""))
-            .unwrap_or(""),
-    );
+    let mut password_input = Input::new("Password", "password")
+        .kind(InputKind::Password)
+        .value(
+            request
+                .map(|req| req.password.as_deref().unwrap_or(""))
+                .unwrap_or(""),
+        );
     let mut invalid_credentials = None;
 
     if let Some(e) = errors {
@@ -118,7 +122,7 @@ pub fn login_form(request: Option<&LoginAttempRequest>, errors: Option<&ErrorBag
                 (e[0])
             }
         }
-        form class="card-body" hx-post="/login" hx-swap="outerHTML" novalidate {
+        form class="card-body" hx-post="/login" hx-swap="innerHTML" hx-target="closest div" novalidate {
             h1 class="card-title text-center text-2xl" { "Login" }
             (username_input)
             (password_input)
