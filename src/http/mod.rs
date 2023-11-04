@@ -1,5 +1,5 @@
 use axum::{routing::get, Router};
-use axum_session::{Session, SessionConfig, SessionLayer, SessionRedisPool, SessionStore, Key};
+use axum_session::{Key, Session, SessionConfig, SessionLayer, SessionRedisPool, SessionStore};
 use redis_pool::RedisPool;
 use sqlx::MySqlPool;
 use tower_http::services::ServeDir;
