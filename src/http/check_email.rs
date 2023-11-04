@@ -1,5 +1,5 @@
 use super::{utils::deserialize_empty_string_as_none, AppContext};
-use crate::view::input::{Input, InputKind, OnKeyUpValidation};
+use crate::view::input::{Input, InputKind, OnChangeValidation};
 use axum::{
     extract::{Form, State},
     routing::post,
@@ -25,7 +25,7 @@ async fn check_email(
 ) -> Markup {
     let mut email_input = Input::new("Email", "email")
         .kind(InputKind::Email)
-        .custom_validation(OnKeyUpValidation::Email);
+        .validate_on_change(OnChangeValidation::Email);
 
     if request.email.is_none() {
         return html! {

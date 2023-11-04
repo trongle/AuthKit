@@ -1,4 +1,4 @@
-use super::input::OnKeyUpValidation;
+use super::input::OnChangeValidation;
 use super::input::{Input, InputKind};
 use crate::LoginAttempRequest;
 use crate::{ErrorBag, RegisterRequest};
@@ -38,10 +38,10 @@ pub async fn register_page() -> Markup {
 
 pub fn register_form(request: Option<&RegisterRequest>, errors: Option<&ErrorBag>) -> Markup {
     let mut username_input =
-        Input::new("Username", "username").custom_validation(OnKeyUpValidation::Username);
+        Input::new("Username", "username").validate_on_change(OnChangeValidation::Username);
     let mut email_input = Input::new("Email", "email")
         .kind(InputKind::Email)
-        .custom_validation(OnKeyUpValidation::Email);
+        .validate_on_change(OnChangeValidation::Email);
     let mut password_input = Input::new("Password", "password").kind(InputKind::Password);
     let mut password_confirmation_input =
         Input::new("Password Confirmation", "password_confirmation").kind(InputKind::Password);
