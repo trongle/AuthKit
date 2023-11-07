@@ -127,7 +127,7 @@ pub fn login_form(request: Option<&LoginAttempRequest>, errors: Option<&ErrorBag
             (username_input)
             (password_input)
             div class="flex justify-end items-center gap-4 my-4" {
-                a href="/register" class="underline" { "Don't have account, yet?" }
+                a href="/register" class="underline" hx-target="body" { "Don't have account, yet?" }
                 button type="submit" class="btn btn-primary text-white" {
                     span class="loading loading-spinner loading-sm htmx-indicator" {}
                     "Login"

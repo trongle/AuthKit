@@ -113,7 +113,7 @@ async fn store(
         );
 
         // If everything ok, then we will create
-        // a logged in session for the user. And
+        // a logged-in session for the user. And
         // redirect the user to the home page.
         if result.is_ok() {
             session.renew();
