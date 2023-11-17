@@ -2,14 +2,15 @@ use axum::{routing::get, Router};
 use axum_session::{Key, Session, SessionConfig, SessionLayer, SessionRedisPool, SessionStore};
 use redis_pool::RedisPool;
 use sqlx::MySqlPool;
+use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
 
 mod authentication;
 mod check_email;
 mod check_username;
-mod cookie;
 mod error;
 mod extractor;
+mod middleware;
 mod utils;
 
 pub use authentication::{LoginAttempRequest, RegisterRequest};
@@ -42,7 +43,7 @@ pub async fn server(db: MySqlPool) {
         .serve(
             router_web()
                 .with_state(app_context)
-                .layer(SessionLayer::new(session_store))
+                .layer(ServiceBuilder::new().layer(SessionLayer::new(session_store)))
                 .into_make_service(),
         )
         .await
@@ -55,8 +56,7 @@ fn router_web() -> Router<AppContext> {
         .route("/home", get(get_home))
         .merge(authentication::router())
         .merge(check_email::router())
-        .merge(check_username::router())
-        .merge(cookie::router());
+        .merge(check_username::router());
 }
 
 async fn get_home(session: Session<SessionRedisPool>) -> String {
