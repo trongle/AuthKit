@@ -7,7 +7,7 @@ async fn main() {
     // for the applcation.
     let db = MySqlPoolOptions::new()
         .max_connections(5)
-        .connect("mysql://localhost:3306/hands_on_maud")
+        .connect("mysql://root:password@127.0.0.1:3306/auth_kit")
         .await
         .unwrap();
 

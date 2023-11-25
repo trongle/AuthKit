@@ -1,5 +1,6 @@
-use axum::{routing::get, Router};
+use axum::{routing::get, Extension, Router};
 use axum_session::{Key, Session, SessionConfig, SessionLayer, SessionRedisPool, SessionStore};
+use middleware::{AuthLayer, RedirectIfAuthenticated};
 use redis_pool::RedisPool;
 use sqlx::MySqlPool;
 use tower::ServiceBuilder;
@@ -15,6 +16,8 @@ mod utils;
 
 pub use authentication::{LoginAttempRequest, RegisterRequest};
 pub use error::ErrorBag;
+
+use self::middleware::Auth;
 
 #[derive(Clone)]
 pub struct AppContext {
@@ -42,8 +45,13 @@ pub async fn server(db: MySqlPool) {
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
         .serve(
             router_web()
+                .layer(
+                    ServiceBuilder::new()
+                        .layer(SessionLayer::new(session_store))
+                        .layer(AuthLayer::new(app_context.clone()))
+                        .layer(RedirectIfAuthenticated::new()),
+                )
                 .with_state(app_context)
-                .layer(ServiceBuilder::new().layer(SessionLayer::new(session_store)))
                 .into_make_service(),
         )
         .await
@@ -59,7 +67,11 @@ fn router_web() -> Router<AppContext> {
         .merge(check_username::router());
 }
 
-async fn get_home(session: Session<SessionRedisPool>) -> String {
+async fn get_home(session: Session<SessionRedisPool>, mut auth: Extension<Auth>) -> String {
+    let user = auth.get_user().await;
+    println!("{:?}", user);
+    let user = auth.get_user().await;
+    println!("{:?}", user);
     let username: String = session.get("username").unwrap();
 
     return format!("Hello, {}!", username);
