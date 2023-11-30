@@ -1,5 +1,7 @@
+use std::{error::Error, future::Future, pin::Pin};
+
+use super::Auth;
 use axum::{body::Body, http::Request, response::Response};
-use axum_session::SessionRedisPool;
 use tower::{Layer, Service as TowerService};
 
 #[derive(Clone)]
@@ -31,7 +33,7 @@ where
 {
     type Response = S::Response;
     type Error = S::Error;
-    type Future = S::Future;
+    type Future = Pin<Box<dyn Future<Output = Result<S::Response, String>>>>;
 
     fn poll_ready(
         &mut self,
@@ -41,26 +43,19 @@ where
     }
 
     fn call(&mut self, request: Request<Body>) -> Self::Future {
-        println!("RedirectIfAuthenticated");
+        return Box::pin(async move {
+            let auth = request.extensions().get::<Auth>().unwrap();
 
-        if request.uri().path() != "/login" && request.uri().path() != "/register" {
-            return self.next.call(request);
-        }
+            if auth.get_user().is_some() && ["/login", "/register"].contains(&request.uri().path())
+            {
+                return Err("".to_string());
+            }
 
-        // Box::pin(async move {
-        // if let Some(session) = request
-        //     .extensions()
-        //     .get::<axum_session::Session<SessionRedisPool>>()
-        // {
-        //     if session.get::<i32>("user_id").is_some() {
-        //         return Response::builder()
-        //             .status(302)
-        //             .header("Location", "/home")
-        //             .body(Body::empty())
-        //             .unwrap();
-        //     }
-        // }
-        // });
-        return self.next.call(request);
+            match self.next.call(request).await {
+                Ok(Ok(response)) => return Ok(response),
+                Ok(Err(error)) => return Err(error),
+                Err(e) => return Err("".to_string()),
+            }
+        });
     }
 }

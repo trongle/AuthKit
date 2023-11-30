@@ -1,11 +1,3 @@
-use axum::{routing::get, Extension, Router};
-use axum_session::{Key, Session, SessionConfig, SessionLayer, SessionRedisPool, SessionStore};
-use middleware::{AuthLayer, RedirectIfAuthenticated};
-use redis_pool::RedisPool;
-use sqlx::MySqlPool;
-use tower::ServiceBuilder;
-use tower_http::services::ServeDir;
-
 mod authentication;
 mod check_email;
 mod check_username;
@@ -13,6 +5,14 @@ mod error;
 mod extractor;
 mod middleware;
 mod utils;
+
+use axum::{routing::get, Extension, Router};
+use axum_session::{Key, Session, SessionConfig, SessionLayer, SessionRedisPool, SessionStore};
+use middleware::{auth, RedirectIfAuthenticated};
+use redis_pool::RedisPool;
+use sqlx::MySqlPool;
+use tower::ServiceBuilder;
+use tower_http::services::ServeDir;
 
 pub use authentication::{LoginAttempRequest, RegisterRequest};
 pub use error::ErrorBag;
@@ -48,7 +48,10 @@ pub async fn server(db: MySqlPool) {
                 .layer(
                     ServiceBuilder::new()
                         .layer(SessionLayer::new(session_store))
-                        .layer(AuthLayer::new(app_context.clone()))
+                        .layer(axum::middleware::from_fn_with_state(
+                            app_context.clone(),
+                            auth,
+                        ))
                         .layer(RedirectIfAuthenticated::new()),
                 )
                 .with_state(app_context)
@@ -67,10 +70,10 @@ fn router_web() -> Router<AppContext> {
         .merge(check_username::router());
 }
 
-async fn get_home(session: Session<SessionRedisPool>, mut auth: Extension<Auth>) -> String {
-    let user = auth.get_user().await;
+async fn get_home(session: Session<SessionRedisPool>, auth: Extension<Auth>) -> String {
+    let user = auth.get_user();
     println!("{:?}", user);
-    let user = auth.get_user().await;
+    let user = auth.get_user();
     println!("{:?}", user);
     let username: String = session.get("username").unwrap();
 
